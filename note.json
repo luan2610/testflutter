@@ -1,0 +1,48 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+Future<void> uploadNoteToGitHub({
+  required String fileName,
+  required String content,
+  required String token,
+}) async {
+  final repoOwner = 'tên-tài-khoản-github-của-bạn';
+  final repoName = 'flutter-notes-data';
+  final path = 'notes/$fileName.json';
+
+  final url = Uri.parse(
+    'https://api.github.com/repos/$repoOwner/$repoName/contents/$path',
+  );
+
+  // Kiểm tra xem file đã tồn tại hay chưa để lấy SHA
+  String? sha;
+  final getRes = await http.get(url, headers: {
+    'Authorization': 'Bearer $token',
+    'Accept': 'application/vnd.github.v3+json',
+  });
+
+  if (getRes.statusCode == 200) {
+    final data = jsonDecode(getRes.body);
+    sha = data['sha'];
+  }
+
+  final body = jsonEncode({
+    'message': 'Upload note $fileName',
+    'content': base64Encode(utf8.encode(content)),
+    if (sha != null) 'sha': sha, // cần SHA nếu file đã tồn tại
+  });
+
+  final res = await http.put(url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/vnd.github.v3+json',
+      },
+      body: body);
+
+  if (res.statusCode == 201 || res.statusCode == 200) {
+    print('Ghi chú đã được tải lên GitHub');
+  } else {
+    print('Lỗi: ${res.statusCode}');
+    print(res.body);
+  }
+}
